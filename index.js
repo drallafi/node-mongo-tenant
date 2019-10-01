@@ -154,6 +154,7 @@ class MongoTenant {
    * @returns {MongoTenant}
    */
   compoundIndexes() {
+    // TODO: Consider tenantId array
     if (this.isEnabled()) {
       // apply tenancy awareness to schema level unique indexes
       this.schema._indexes.forEach((index) => {
@@ -224,6 +225,8 @@ class MongoTenant {
           return this.model(this.modelName);
         }
 
+        // TODO: MODEL CACHED WITH MULTIPLE TENANT IDS
+        /*
         let modelCache = me._modelCache[this.modelName] || (me._modelCache[this.modelName] = {});
 
         // lookup tenant-bound model in cache
@@ -235,6 +238,9 @@ class MongoTenant {
         }
 
         return modelCache[tenantId];
+        */
+        let Model = this.model(this.modelName);
+        return me.createTenantAwareModel(Model, tenantId);
       },
 
       get mongoTenant() {
@@ -288,7 +294,8 @@ class MongoTenant {
 
         pipeline.unshift({
           $match: {
-            [tenantIdKey]: this[tenantIdGetter]()
+            // Multiple tenantIds in query
+            [tenantIdKey]: {$in: this[tenantIdGetter]()}
           }
         });
 
@@ -296,13 +303,15 @@ class MongoTenant {
       }
 
       static deleteOne(conditions, callback) {
-        conditions[tenantIdKey] = this[tenantIdGetter]();
+        // Multiple tenantIds in query
+        conditions[tenantIdKey] = {$in: this[tenantIdGetter]()};
 
         return super.deleteOne(conditions, callback);
       }
 
       static deleteMany(conditions, options, callback) {
-        conditions[tenantIdKey] = this[tenantIdGetter]();
+        // Multiple tenantIds in query
+        conditions[tenantIdKey] = {$in: this[tenantIdGetter]()};
 
         return super.deleteMany(conditions, options, callback);
       }
@@ -313,7 +322,8 @@ class MongoTenant {
           conditions = {};
         }
 
-        conditions[tenantIdKey] = this[tenantIdGetter]();
+        // Multiple tenantIds in query
+        conditions[tenantIdKey] = {$in: this[tenantIdGetter]()};
 
         return super.remove(conditions, callback);
       }
@@ -323,6 +333,7 @@ class MongoTenant {
           me = this,
           tenantId = this[tenantIdGetter]();
 
+        // TODO: Create should set tenantId as some const value and the value is updated afterwards 
         // Model.inserMany supports a single document as parameter
         if (!Array.isArray(docs)) {
           docs[tenantIdKey] = tenantId;
@@ -415,7 +426,8 @@ class MongoTenant {
 
     this.schema.pre('count', function(next) {
       if (this.model.hasTenantContext) {
-        this._conditions[tenantIdKey] = this.model[tenantIdGetter]();
+        // Multiple tenantIds in query
+        this._conditions[tenantIdKey] = {$in: this.model[tenantIdGetter]()};
       }
 
       next();
@@ -423,7 +435,8 @@ class MongoTenant {
 
     this.schema.pre('find', function(next) {
       if (this.model.hasTenantContext) {
-        this._conditions[tenantIdKey] = this.model[tenantIdGetter]();
+        // Multiple tenantIds in query
+        this._conditions[tenantIdKey] = {$in: this.model[tenantIdGetter]()};
       }
 
       next();
@@ -432,7 +445,8 @@ class MongoTenant {
 
     this.schema.pre('countDocuments', function(next) {
         if (this.model.hasTenantContext) {
-            this._conditions[tenantIdKey] = this.model[tenantIdGetter]();
+            // Multiple tenantIds in query
+            this._conditions[tenantIdKey] = {$in: this.model[tenantIdGetter]()};
         }
 
         next();
@@ -440,7 +454,8 @@ class MongoTenant {
 
     this.schema.pre('findOne', function(next) {
       if (this.model.hasTenantContext) {
-        this._conditions[tenantIdKey] = this.model[tenantIdGetter]();
+        // Multiple tenantIds in query
+        this._conditions[tenantIdKey] = {$in: this.model[tenantIdGetter]()};
       }
 
       next();
@@ -448,7 +463,8 @@ class MongoTenant {
 
     this.schema.pre('findOneAndRemove', function(next) {
       if (this.model.hasTenantContext) {
-        this._conditions[tenantIdKey] = this.model[tenantIdGetter]();
+        // Multiple tenantIds in query
+        this._conditions[tenantIdKey] = {$in: this.model[tenantIdGetter]()};
       }
 
       next();
@@ -464,6 +480,7 @@ class MongoTenant {
 
     this.schema.pre('save', function(next) {
       if (this.constructor.hasTenantContext) {
+        // Multiple tenantIds in update
         this[tenantIdKey] = this.constructor[tenantIdGetter]();
       }
 
@@ -494,15 +511,18 @@ class MongoTenant {
       tenantId = query.model[tenantIdGetter](),
       $set = query._update.$set;
 
-    query._conditions[tenantIdKey] = tenantId;
+    // Multiple tenantIds in query
+    query._conditions[tenantIdKey] = {$in: tenantId};
 
     // avoid jumping tenant context when overwriting a model.
     if ((tenantIdKey in query._update) || query.options.overwrite) {
+      // Multiple tenantIds in update
       query._update[tenantIdKey] = tenantId;
     }
 
     // avoid jumping tenant context from $set operations
     if ($set && (tenantIdKey in $set) && $set[tenantIdKey] !== tenantId) {
+      // Multiple tenantIds in update
       $set[tenantIdKey] = tenantId;
     }
   }
