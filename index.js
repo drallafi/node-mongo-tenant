@@ -26,6 +26,7 @@ class MongoTenant {
    * @param {string} [options.tenantIdGetter] - The name of the tenant id getter method. Default: **getTenantId**.
    * @param {string} [options.accessorMethod] - The name of the tenant bound model getter method. Default: **byTenant**.
    * @param {boolean} [options.requireTenantId] - Whether tenant id field should be required. Default: **false**.
+   * @param {boolean} [options.preserveUniqueKeys] - Skip the automatic unique key extension. Default: **false**.
    */
   constructor(schema, options) {
     this.options = options || {};
@@ -109,6 +110,15 @@ class MongoTenant {
   }
 
   /**
+   * Check if automatic unique key extension is enabled.
+   *
+   * @return {boolean}
+   */
+  areUniqueKeysPreserved() {
+    return this.options.preserveUniqueKeys === true;
+  }
+
+  /**
    * Checks if instance is compatible to other plugin instance
    *
    * For population of referenced models it's necessary to detect if the tenant
@@ -155,7 +165,7 @@ class MongoTenant {
    */
   compoundIndexes() {
     // TODO: Consider tenantId array
-    if (this.isEnabled()) {
+    if (this.isEnabled() && !this.areUniqueKeysPreserved()) {
       // apply tenancy awareness to schema level unique indexes
       this.schema._indexes.forEach((index) => {
         // extend uniqueness of indexes by tenant id field
@@ -225,8 +235,6 @@ class MongoTenant {
           return this.model(this.modelName);
         }
 
-        // TODO: MODEL CACHED WITH MULTIPLE TENANT IDS
-        /*
         let modelCache = me._modelCache[this.modelName] || (me._modelCache[this.modelName] = {});
 
         // lookup tenant-bound model in cache
@@ -238,9 +246,6 @@ class MongoTenant {
         }
 
         return modelCache[tenantId];
-        */
-        let Model = this.model(this.modelName);
-        return me.createTenantAwareModel(Model, tenantId);
       },
 
       get mongoTenant() {

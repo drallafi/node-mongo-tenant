@@ -202,6 +202,7 @@ $ npm run test-and-cover
 
 # run tests with custom mongoDB uri
 $ MONGO_URI='mongodb://user:password@xyz.mlab.com:23315/mongo-tenant-test' npm run test-and-cover
+$ MONGO_URI='mongodb://localhost:27017/mongo-tenant-test' npm run test
 ```
 
 ### LICENSE
